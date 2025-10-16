@@ -9,7 +9,7 @@ def timestamp(fn):
 
 def check_balance(fn):
     def inner(self, *args, **kwargs):
-        if self.balance <= 0:
+        if self.balance <= 0: # når skal denne brukes? mulig vi kun trenger å sjekke saldo ved withdrawal, og sjekke at withdrawal >= balance
             print("Not enough money in your account.")
             return
         else:
@@ -18,14 +18,14 @@ def check_balance(fn):
 
 class Account:
 
-    def __init__(self):
+    def __init__(self): #(self, name: str, account_number: int, balance: float, transaction_counter: int, transaction_history, deposited_amount: float, withdrawed_amount: float, closed: bool)
         self.name = ""
-        self.account_number = 0
-        self.balance = 0.0
+        self.account_number = 0 # burde vi starte på 10000000 for at alle kontoer skal ha 8 siffer?
+        self.balance = 0.0 # sjekk at vi får kun 2 desimaler eller om det må kodes inn
         self.transaction_counter = 0
         self.transaction_history = []
-        self.deposited_amount = 0.0
-        self.withdrawn_amount = 0.0
+        self.deposited_amount = 0.0 # sjekk at vi får kun 2 desimaler eller om det må kodes inn
+        self.withdrawn_amount = 0.0 # sjekk at vi får kun 2 desimaler eller om det må kodes inn
         self.closed = False
 
     def account_creation(self):
@@ -80,4 +80,5 @@ class Account:
             print("No such account.")
 
     def main(self):
+
         print("Welcome to the bank. Please choose an option.\n1. ACCESS ACCOUNT\n2. CREATE ACCOUNT\n3. DELETE ACCOUNT\n4. ACCOUNT STATUS")
