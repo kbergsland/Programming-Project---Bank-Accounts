@@ -18,7 +18,7 @@ def check_balance(fn):
 
 class Account:
 
-    def __init__(self): #(self, name: str, account_number: int, balance: float, transaction_counter: int, transaction_history, deposited_amount: float, withdrawed_amount: float, closed: bool)
+    def __init__(self): #(self, name: str, account_number: int, balance: float, transaction_counter: int, transaction_history, deposited_amount: float, withdrawed_amount: float, closed: bool, pin: int)
         self.name = ""
         self.account_number = 0 # burde vi starte på 10000000 for at alle kontoer skal ha 8 siffer?
         self.balance = 0.0 # sjekk at vi får kun 2 desimaler eller om det må kodes inn
@@ -27,12 +27,25 @@ class Account:
         self.deposited_amount = 0.0 # sjekk at vi får kun 2 desimaler eller om det må kodes inn
         self.withdrawn_amount = 0.0 # sjekk at vi får kun 2 desimaler eller om det må kodes inn
         self.closed = False
+        self.pin = "" #må ordne at det alltid er 4 digits
 
     def account_creation(self):
         self.account_number += 1
         self.name = input("Please enter your account name")
         print(f"your account number is: {self.account_number:04}")
         self.balance = float(input("Please enter your current balance"))
+        self.pin = int(input("Please enter your desired PIN code"))
+        
+    def login_info(): # ikke ferdig med denne
+        login = self.pin
+        pin_input = input("Please enter your PIN code: ")
+        for (value) in login.items(): 
+            if pin_input == value:
+                main()
+            else:
+                print("\nWrong PIN. Try again.")
+                login_info()
+        return 
 
     @timestamp
     def deposit(self, current_time):
@@ -82,3 +95,4 @@ class Account:
     def main(self):
 
         print("Welcome to the bank. Please choose an option.\n1. ACCESS ACCOUNT\n2. CREATE ACCOUNT\n3. DELETE ACCOUNT\n4. ACCOUNT STATUS")
+
