@@ -1,12 +1,19 @@
-import random
-import functools
 from datetime import datetime
 
 def timestamp(fn):
-    def inner():
+    def inner(self, *args, **kwargs):
         time = datetime.now()
         current_time = time.strftime("%d-%m-%Y %H:%M:%S")
-        fn(current_time)
+        fn(self, current_time, *args, **kwargs)
+    return inner
+
+def check_balance(fn):
+    def inner(self, *args, **kwargs):
+        if self.balance <= 0:
+            print("Not enough money in your account.")
+            return
+        else:
+            return fn(self, *args, **kwargs)
     return inner
 
 class Account:
@@ -16,9 +23,9 @@ class Account:
         self.account_number = 0
         self.balance = 0.0
         self.transaction_counter = 0
-        self.transaction_history = {}
+        self.transaction_history = []
         self.deposited_amount = 0.0
-        self.withdrawed_amount = 0.0
+        self.withdrawn_amount = 0.0
         self.closed = False
 
     def account_creation(self):
@@ -33,23 +40,21 @@ class Account:
         if self.deposited_amount > 0:
             self.balance += self.deposited_amount
             self.transaction_counter += 1
-            self.transaction_history[current_time] = ["Deposit", self.deposited_amount]
+            self.transaction_history.append(current_time, "Deposit: ", f"{self.deposited_amount}$")
             print(f"You deposited {self.deposited_amount} at {current_time}. Your balance is now {self.balance}$.")
         else:
             print("Please enter a positive integer.")
 
     @timestamp
+    @check_balance
     def withdrawal(self, current_time):
-        self.withdrawed_amount = float(input("Please enter your desired deposit."))
-        if self.withdrawed_amount >= self.balance:
-            self.balance += self.withdrawed_amount
-            self.transaction_counter += 1
-            self.transaction_history[current_time] = ["Withdrawal", self.withdrawed_amount]
-            print(f"You withdrew {self.deposited_amount} at {current_time}. Your balance is now {self.balance}$.")
-        else:
-            print("Not enough money in your account")
+        self.withdrawn_amount = float(input("Please enter your desired deposit."))
+        self.balance -= self.withdrawn_amount
+        self.transaction_counter += 1
+        self.transaction_history.append({current_time, "Withdrawal: ", f"{self.withdrawn_amount}$"})
+        print(f"You withdrew {self.withdrawn_amount} at {current_time}. Your balance is now {self.balance}$.")
 
-    def balance(self):
+    def get_balance(self):
         return self.balance
     
     def transaction_history(self):
@@ -61,7 +66,7 @@ class Account:
 
     def close_account(self):
         self.balance = 0
-        self.transaction_history = {}
+        self.transaction_history = []
         self.closed = True
 
     def account_status(self):
@@ -73,3 +78,6 @@ class Account:
                 print("This account is currently active.")
         else:
             print("No such account.")
+
+    def main(self):
+        print("Welcome to the bank. Please choose an option.\n1. ACCESS ACCOUNT\n2. CREATE ACCOUNT\n3. DELETE ACCOUNT\n4. ACCOUNT STATUS")
