@@ -19,7 +19,7 @@ class Account:
         self.transaction_history = {}
         self.deposited_amount = 0.0
         self.withdrawed_amount = 0.0
-        self.closed = True
+        self.closed = False
 
     def account_creation(self):
         self.account_number += 1
@@ -61,10 +61,15 @@ class Account:
 
     def close_account(self):
         self.balance = 0
-
+        self.transaction_history = {}
+        self.closed = True
 
     def account_status(self):
-        pass
-
-
-
+        status = input("Please enter your account name.")
+        if status == self.name:
+            if self.closed == True:
+                print("This account has been closed.")
+            else:
+                print("This account is currently active.")
+        else:
+            print("No such account.")
