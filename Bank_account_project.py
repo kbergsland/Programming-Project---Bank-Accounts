@@ -1,233 +1,287 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Sat Oct 18 12:52:27 2025
-
-@author: T-Skrrt
-"""
 
 from datetime import datetime
 
+#alt likt
 def timestamp(fn):
     def inner(self, *args, **kwargs):
-        time = datetime.now()
-        current_time = time.strftime("%d-%m-%Y %H:%M:%S")
+        now = datetime.now()
+        current_time = now.strftime("%d-%m-%Y %H:%M:%S")
         return fn(self, current_time, *args, **kwargs)
     return inner
 
+def check_balance(fn):
+    """Validate that the *withdrawn amount argument* is positive and <= balance.
+    Works regardless of decorator order by inspecting args/kwargs."""
+    def inner(self, *args, **kwargs):
+        # Try to get 'withdrawn_amount' from kwargs first
+        amount = kwargs.get("withdrawn_amount", None)
+
+        # Otherwise, try positional args. Our withdraw signature is:
+        #   withdraw(self, current_time, withdrawn_amount)
+        # After timestamp, args should be (current_time, withdrawn_amount)
+        if amount is None:
+            if len(args) >= 2 and isinstance(args[1], (int, float)):
+                amount = args[1]
+            elif len(args) >= 1 and isinstance(args[0], (int, float)):
+                amount = args[0]
+
+        if amount is None:
+            print(30*"-", "\nNo withdrawal amount provided.\n", 30*"-")
+            return
+
+        if amount > self.balance:
+            print(30*"-", "\nNot enough money in your account.\n", 30*"-")
+            return
+        if amount <= 0:
+            print(30*"*", "\nPlease enter a positive amount.\n", 30*"*")
+            return
+
+        return fn(self, *args, **kwargs)
+    return inner
+
+# ----------------------------
+# BankAccount
+# ----------------------------
 class BankAccount:
+    _registry = []         # All accounts
+    _next_account = 10000001
 
     def __init__(self):
         self.name = ""
-        self.account_number = 10000000
+        self.account_number = None
         self.balance = 0.0
         self.transaction_counter = 0
-        self.transaction_history = []  # list of tuples: (time, type, amount)
+        self.transaction_history = []
         self.closed = False
-        self.pin = ""  # as string
+        self.pin = ""              # 4-digit string
         self.logged_in = False
 
     def account_creation(self):
-        self.account_number += 1
+        # Assign unique account number
+        self.account_number = type(self)._next_account
+        type(self)._next_account += 1
+
         self.name = input("Please enter your name: ").strip()
-        print(f"Your account number is: {self.account_number:04}")
+
+        # Initial balance
         while True:
             try:
                 initial_balance = float(input("Please enter your current balance: "))
                 if initial_balance < 0:
-                    print("Initial balance cannot be negative.")
+                    print(30*"*", "\nInitial balance cannot be negative.\n", 30*"*")
                     continue
                 self.balance = round(initial_balance, 2)
                 break
             except ValueError:
-                print("Please enter a valid number for balance.")
+                print(30*"*", "\nPlease enter a valid number.\n", 30*"*")
+
+        # PIN
         while True:
-            pin_input = input("Please enter your desired 4-digit PIN code: ").strip()
+            pin_input = input("Please choose a 4-digit PIN: ").strip()
             if pin_input.isdigit() and len(pin_input) == 4:
                 self.pin = pin_input
                 break
             else:
-                print("PIN must be exactly 4 digits.")
-        print(30*"-", "\nAccount created successfully!\n", 30*"-")
+                print(30*"*", "\nPIN must be exactly 4 digits.\n", 30*"*")
+        type(self)._registry.append(self)
+        print(30*"-", f"\nYour account number is: {self.account_number}\n", 30*"-")
+        print(30*"*", "\nAccount created successfully!\n", 30*"*")
 
-    def login_info(self, user_info, valid_users):
-        username, pin = user_info
-        return username in valid_users and pin == valid_users[username]
+    # ---------- Auth ----------
+    @classmethod
+    def _find_by_number_and_pin(cls, number, pin):
+        for acc in cls._registry:
+            if not acc.closed and acc.account_number == number and acc.pin == pin:
+                return acc
+        return None
 
-    def login(self):
-        if self.closed:
-            print("This account is closed — you cannot login.")
-            return False
+    @classmethod
+    def _find_by_name_and_pin(cls, name, pin):
+        for acc in cls._registry:
+            if not acc.closed and acc.name == name and acc.pin == pin:
+                return acc
+        return None
 
-        valid_users = { self.name : self.pin }
-        name_input = input("Please enter your name: ").strip()
-        pin_input = input("Enter PIN: ").strip()
-        if self.login_info((name_input, pin_input), valid_users):
-            self.logged_in = True
-            print("Login successful.")
-            return True
+    @classmethod
+    def login(cls):
+        ident = input("Enter account number OR name: ").strip()
+        pin = input("Enter PIN: ").strip()
+
+        # Prefer account number when numeric
+        if ident.isdigit():
+            acc = cls._find_by_number_and_pin(int(ident), pin)
         else:
-            print("Invalid name or PIN.")
-            return False
+            acc = cls._find_by_name_and_pin(ident, pin)
 
+        if acc:
+            acc.logged_in = True
+            print("\nLogin successful.\n")
+            return acc
+        else:
+            print(30*"*", "\nInvalid name or PIN.\n", 30*"*")
+            return None
+
+    # ---------- Operations ----------
     @timestamp
     def deposit(self, current_time):
-        if not self.logged_in:
-            print("You must be logged in to deposit.")
-            return
         try:
-            amount = float(input("Please enter your desired deposit amount: "))
+            deposited_amount = float(input("Please enter your desired deposit amount ($): "))
         except ValueError:
-            print("Please enter a valid number.")
+            print(30*"*", "\nPlease enter a valid number.\n", 30*"*")
             return
-        if amount <= 0:
-            print("Please enter a positive amount.")
+        if deposited_amount <= 0:
+            print(30*"*", "\nPlease enter a positive amount.\n", 30*"*")
             return
-        amount = round(amount, 2)
-        self.balance += amount
-        self.balance = round(self.balance, 2)
+
+        deposited_amount = round(deposited_amount, 2)
+        self.balance = round(self.balance + deposited_amount, 2)
         self.transaction_counter += 1
-        self.transaction_history.append((current_time, "Deposit", f"{amount}$"))
-        print(f"You deposited {amount}$ at {current_time}. Your balance is now {self.balance}$.")
+        self.transaction_history.append(
+            {"time": current_time, "type": "Deposit", "amount": deposited_amount}
+        )
+        print(30*"*", f"\nYou deposited {deposited_amount}$ at {current_time}. "
+                      f"Your balance is now {self.balance}$.\n", 30*"*")
 
     @timestamp
-    def withdraw(self, current_time):
-        if not self.logged_in:
-            print("You must be logged in to withdraw.")
-            return
-        try:
-            amount = float(input("Please enter your desired withdrawal amount: "))
-        except ValueError:
-            print("Please enter a valid number.")
-            return
-        if amount <= 0:
-            print("Please enter a positive amount.")
-            return
-        if amount > self.balance:
-            print(30*"-", "Not enough money in your account.", 30*"-")
-            return
-        amount = round(amount, 2)
-        self.balance -= amount
-        self.balance = round(self.balance, 2)
+    @check_balance
+    def withdraw(self, current_time, withdrawn_amount):
+        withdrawn_amount = round(withdrawn_amount, 2)
+        self.balance = round(self.balance - withdrawn_amount, 2)
         self.transaction_counter += 1
-        self.transaction_history.append((current_time, "Withdrawal", f"{amount}$"))
-        print(f"You withdrew {amount}$ at {current_time}. Your balance is now {self.balance}$.")
+        self.transaction_history.append(
+            {"time": current_time, "type": "Withdrawal", "amount": withdrawn_amount}
+        )
+        print(30*"*", f"\nYou withdrew {withdrawn_amount}$ at {current_time}. "
+                      f"Your balance is now {self.balance}$.\n", 30*"*")
 
+    # ---------- Info ----------
     def show_balance(self):
-        if not self.logged_in:
-            print("You must be logged in to view balance.")
-            return
-        print(f"Balance for {self.name}: {self.balance:.2f}$")
+        print(30*"*", f"\nBalance for {self.name}: {self.balance:.2f}$\n", 30*"*")
 
     def show_transaction_history(self):
-        if not self.logged_in:
-            print("You must be logged in to view transaction history.")
+        if not self.transaction_history:
+            print(30*"*", "\nNo transactions yet.\n", 30*"*")
             return
-        if len(self.transaction_history) == 0:
-            print("No transactions yet.")
-            return
-        print("\nTransaction history:")
-        for entry in self.transaction_history:
-            time, kind, amount = entry
-            print(f"{time} | {kind} | {amount}")
-        print("")
+        print(30*"*", "\nTransaction history:\n")
+        for tr in self.transaction_history:
+            print(f"{tr['time']} | {tr['type']} | {tr['amount']}$")
+        print(30*"*")
 
     def account_summary(self):
-        if not self.logged_in:
-            print("You must be logged in to view account summary.")
-            return
         print(30*"-")
         print(f"Account name: {self.name}")
-        print(f"Account number: {self.account_number:04}")
+        print(f"Account number: {self.account_number}")
         print(f"Balance: {self.balance:.2f}$")
         print(f"Number of transactions: {self.transaction_counter}")
         print(30*"-")
 
     def close_account(self):
-        if not self.logged_in:
-            print("You must be logged in to close account.")
-            return
         self.balance = 0.0
         self.transaction_history = []
         self.closed = True
-        print("Your account has been closed.")
+        print(30*"*", "\nYour account has been closed.\n", 30*"*")
 
-    def account_status(self):
-        name_check = input(f"{30*'-'}\nPlease enter your account name:\n{30*'-'}\n").strip()
-        if name_check == self.name:
-            if self.closed:
-                print(30*"*", "This account has been closed.", 30*"*")
-            else:
-                print(30*"*", "This account is currently active.", 30*"*")
+    @classmethod
+    def account_status(cls):
+        ident = input(f"{30*'-'}\nEnter account number OR name to check status:\n{30*'-'}\n").strip()
+        acc = None
+        if ident.isdigit():
+            for a in cls._registry:
+                if a.account_number == int(ident):
+                    acc = a
+                    break
         else:
+            for a in cls._registry:
+                if a.name == ident:
+                    acc = a
+                    break
+        if acc is None:
             print(30*"*", "\nAccount not found.\n", 30*"*")
+            return
+        if acc.closed:
+            print(30*"*", "This account has been closed.", 30*"*")
+        else:
+            print(30*"*", "This account is currently active.", 30*"*")
 
-    def main_menu(self):
-        print(30*"-", "\nMAIN MENU\n", 30*"-",
-              "\n1. Access account\n2. Create Account\n3. Close account\n4. Account status\n5. Quit\n", 30*"-")
+# ----------------------------
+# Menus (free functions)
+# ----------------------------
+def print_main_menu():
+    print(30*"-", "\nMAIN MENU\n", 30*"-",
+          "\n1. Access account\n2. Create Account\n3. Close account\n4. Account status\n5. Quit\n", 30*"-")
 
-    def account_menu(self):
-        print(30*"-", "\nACCOUNT MENU\n", 30*"-",
-              "\n1. Withdraw money\n2. Deposit money\n3. Transaction history\n4. Account summary\n5. Return to main menu\n", 30*"-")
+def print_account_menu():
+    print(30*"-", "\nACCOUNT MENU\n", 30*"-",
+          "\n1. Withdraw money\n2. Deposit money\n3. Transaction history\n4. Account summary\n5. Return to main menu\n", 30*"-")
 
+# ----------------------------
+# Main
+# ----------------------------
 def main():
     run_program = True
-    account = None  # hold current account
     while run_program:
-        if account is None:
-            account = BankAccount()
-        account.main_menu()
+        print_main_menu()
         try:
-            mainmenu_choice = int(input("Enter your number of choice from the menu (1-5): ").strip())
+            main_choice = int(input("Enter your number of choice from the menu (1-5): ").strip())
         except ValueError:
-            print("Invalid input. Please choose a number between 1 and 5.")
+            print(30*"*", "\nInvalid input. Please choose a number between 1 and 5.\n", 30*"*")
             continue
 
-        if mainmenu_choice == 1:
-            if account.login():
-                while True:
-                    account.account_menu()
+        if main_choice == 1:
+            current = BankAccount.login()
+            if not current:
+                continue
+            # Account menu loop
+            while True:
+                print_account_menu()
+                try:
+                    acct_choice = int(input("Enter your number of choice from the menu (1-5): ").strip())
+                except ValueError:
+                    print(30*"*", "\nInvalid input. Please choose a number between 1 and 5.\n", 30*"*")
+                    continue
+
+                if acct_choice == 1:
                     try:
-                        accountmenu_choice = int(input("Enter your number of choice from the menu (1-5): ").strip())
+                        amt = float(input("Please enter your desired withdrawal amount: "))
                     except ValueError:
-                        print("Invalid input. Please choose a number between 1 and 5.")
+                        print(30*"*", "\nPlease enter a valid number.\n", 30*"*")
                         continue
+                    current.withdraw(amt)
 
-                    if accountmenu_choice == 1:
-                        account.withdraw()
-                    elif accountmenu_choice == 2:
-                        account.deposit()
-                    elif accountmenu_choice == 3:
-                        account.show_transaction_history()
-                    elif accountmenu_choice == 4:
-                        account.account_summary()
-                    elif accountmenu_choice == 5:
-                        break
-                    else:
-                        print("Invalid input. Please choose a number between 1 and 5.")
-            else:
-                # login failed
-                continue
+                elif acct_choice == 2:
+                    current.deposit()
 
-        elif mainmenu_choice == 2:
-            account = BankAccount()  # ny konto
-            account.account_creation()
+                elif acct_choice == 3:
+                    current.show_transaction_history()
 
-        elif mainmenu_choice == 3:
-            if account.login():
-                account.close_account()
-            else:
-                continue
+                elif acct_choice == 4:
+                    current.account_summary()
 
-        elif mainmenu_choice == 4:
-            account.account_status()
+                elif acct_choice == 5:
+                    print("\nReturning to main menu...\n")
+                    break
 
-        elif mainmenu_choice == 5:
-            print("Goodbye!")
+                else:
+                    print(30*"*", "\nInvalid input. Please choose a number between 1 and 5.\n", 30*"*")
+
+        elif main_choice == 2:
+            acc = BankAccount()
+            acc.account_creation()
+
+        elif main_choice == 3:
+            acc = BankAccount.login()
+            if acc:
+                acc.close_account()
+
+        elif main_choice == 4:
+            BankAccount.account_status()
+
+        elif main_choice == 5:
+            print(30*"*", "\nGoodbye!\n", 30*"*")
             run_program = False
 
         else:
-            print("Invalid input. Please choose a number between 1 and 5.")
+            print(30*"*", "\nInvalid input. Please choose a number between 1 and 5.\n", 30*"*")
 
 if __name__ == "__main__":
     main()
-
