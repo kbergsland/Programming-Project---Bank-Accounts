@@ -30,12 +30,12 @@ class Account:
 
     def account_creation(self):
         self.account_number += 1
-        self.name = input("Please enter your name: ")
+        self.name = input("Please enter your name: ").strip()
         print(f"Your account number is: {self.account_number:04}")
         self.balance = float(input("Please enter your current balance: "))
-        self.pin = input("Please enter your desired 4-digit PIN code: ")
+        self.pin = input("Please enter your desired 4-digit PIN code: ").strip()
         while len(self.pin) != 4 or not self.pin.isdigit():
-            self.pin = input("PIN must be exactly 4 digits. Please try again: ")
+            self.pin = input("PIN must be exactly 4 digits. Please try again: ").strip()
         print(30*"-", "\nAccount created successfully!\n", 30*"-")
 
     def login_info(self, user_info, valid_users):
@@ -44,8 +44,8 @@ class Account:
 
     def login(self):
         valid_users = {self.name: self.pin}
-        name_input = input("Please enter your name: ")
-        pin_input = input("Enter PIN: ")
+        name_input = input("Please enter your name: ").strip()
+        pin_input = input("Enter PIN: ").strip()
         user_info = (name_input, pin_input)
         if self.login_info(user_info, valid_users):
             print("Login successful.")
@@ -118,7 +118,7 @@ class Account:
         print("Your account has been closed.")
 
     def account_status(self):
-        status = input(f"{30*'-'}\nPlease enter your account name.\n{30*'-'}\n")
+        status = input(f"{30*'-'}\nPlease enter your account name.\n{30*'-'}\n").strip()
         if status == self.name:
             if self.closed:
                 print(30*"*", "This account has been closed.", 30*"*")
@@ -181,3 +181,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
